@@ -145,6 +145,7 @@ static bool build_image_converter(struct mp_autoconvert *c, struct mp_log *log,
     *f_out = NULL;
 
     if (!p->num_imgfmts)
+        MP_VERBOSE(f,"build_image_converter returning false because no imgfmts\n");
         return true;
 
     for (int n = 0; n < p->num_imgfmts; n++) {
@@ -160,12 +161,14 @@ static bool build_image_converter(struct mp_autoconvert *c, struct mp_log *log,
                 if (!mp_image_params_static_equal(&p->imgparams, &img->params))
                     break;
             }
+            MP_VERBOSE(f,"build_image_converter returning true because samefmt and samesubfmt\n");
             return true;
         }
     }
 
     struct mp_filter *conv = mp_filter_create(f, &convert_filter);
     if (!conv)
+        MP_VERBOSE(f,"build_image_converter returning false because mp_filter_create failed\n");
         return false;
 
     mp_filter_add_pin(conv, MP_PIN_IN, "in");
@@ -330,10 +333,12 @@ static bool build_image_converter(struct mp_autoconvert *c, struct mp_log *log,
     mp_chain_filters(conv->ppins[0], conv->ppins[1], filters, 3);
 
     *f_out = conv;
+    MP_VERBOSE(f,"return true for everything\n");
     return true;
 
 fail:
     talloc_free(conv);
+    MP_VERBOSE(f,"return false because of fail\n");
     return false;
 }
 

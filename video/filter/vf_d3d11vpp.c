@@ -88,6 +88,7 @@ static struct mp_image *alloc_pool(void *pctx, int fmt, int w, int h)
     HRESULT hr;
 
     ID3D11Texture2D *texture = NULL;
+    MP_VERBOSE(vf, "XCLOG alloc_pool, w: %d, h: %d\n", w, h);
     D3D11_TEXTURE2D_DESC texdesc = {
         .Width = w,
         .Height = h,
@@ -123,6 +124,7 @@ static void flush_frames(struct mp_filter *vf)
 
 static void destroy_video_proc(struct mp_filter *vf)
 {
+    MP_ERR(vf, "XCLOG  destroy_video_proc.\n");
     struct priv *p = vf->priv;
 
     if (p->video_proc)
@@ -134,8 +136,41 @@ static void destroy_video_proc(struct mp_filter *vf)
     p->vp_enum = NULL;
 }
 
+
+static void SetSuperResNvidia(struct mp_filter *vf)
+{
+    MP_VERBOSE(vf, "XCLOG SetSuperResNvidia.\n");
+    struct priv *p = vf->priv;
+     GUID kNvidiaPPEInterfaceGUID = {
+        0xd43ce1b3,
+        0x1f4b,
+        0x48ac,
+        {0xba, 0xee, 0xc3, 0xc2, 0x53, 0x75, 0xe6, 0xf7}};
+    unsigned int kStreamExtensionVersionV1 = 0x1;
+    unsigned int kStreamExtensionMethodSuperResolution = 0x2;
+
+    struct {
+        UINT version;
+        UINT method;
+        UINT enable; // 1 to enable, 0 to disable
+    } stream_extension_info = {kStreamExtensionVersionV1,
+                                kStreamExtensionMethodSuperResolution,
+                                1u};
+
+
+    HRESULT hr = ID3D11VideoContext_VideoProcessorSetStreamExtension(p->video_ctx,p->video_proc,0,&kNvidiaPPEInterfaceGUID,
+        sizeof(stream_extension_info), &stream_extension_info);
+
+    if (FAILED(hr)) {
+        MP_ERR(vf, "XCLOG Failed to enable Nvidia RTX Super RES. Error code: %x\n", hr);
+    } else {
+        MP_VERBOSE(vf, "XCLOG Enabled Nvidia RTX Super RES.\n");
+    }
+}
+
 static int recreate_video_proc(struct mp_filter *vf)
 {
+    MP_ERR(vf, "XCLOG Recreating video processor.\n");
     struct priv *p = vf->priv;
     HRESULT hr;
 
@@ -145,14 +180,14 @@ static int recreate_video_proc(struct mp_filter *vf)
         .InputFrameFormat = p->d3d_frame_format,
         .InputWidth = p->c_w,
         .InputHeight = p->c_h,
-        .OutputWidth = p->params.w,
-        .OutputHeight = p->params.h,
+        .OutputWidth = p->out_params.w,
+        .OutputHeight = p->out_params.h,
     };
     hr = ID3D11VideoDevice_CreateVideoProcessorEnumerator(p->video_dev, &vpdesc,
                                                           &p->vp_enum);
     if (FAILED(hr))
         goto fail;
-
+    
     D3D11_VIDEO_PROCESSOR_CAPS caps;
     hr = ID3D11VideoProcessorEnumerator_GetVideoProcessorCaps(p->vp_enum, &caps);
     if (FAILED(hr))
@@ -195,6 +230,8 @@ static int recreate_video_proc(struct mp_filter *vf)
         .right = p->params.w,
         .bottom = p->params.h,
     };
+
+
     ID3D11VideoContext_VideoProcessorSetStreamSourceRect(p->video_ctx,
                                                          p->video_proc,
                                                          0, TRUE, &src_rc);
@@ -221,6 +258,7 @@ static int recreate_video_proc(struct mp_filter *vf)
                                                          p->video_proc,
                                                          &csp);
 
+  
     return 0;
 fail:
     destroy_video_proc(vf);
@@ -235,7 +273,8 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11VideoProcessorInputView *in_view = NULL;
     ID3D11VideoProcessorOutputView *out_view = NULL;
     struct mp_image *in = NULL, *out = NULL;
-    out = mp_image_pool_get(p->pool, IMGFMT_D3D11, p->params.w, p->params.h);
+    MP_VERBOSE(vf, "render: p->params.w: %d, p->params.h: %d\n", p->params.w, p->params.h);
+    out = mp_image_pool_get(p->pool, IMGFMT_D3D11, 2560, 1440);
     if (!out) {
         MP_WARN(vf, "failed to allocate frame\n");
         goto cleanup;
@@ -265,6 +304,7 @@ static struct mp_image *render(struct mp_filter *vf)
     if (!p->video_proc || p->c_w != texdesc.Width || p->c_h != texdesc.Height ||
         p->d3d_frame_format != d3d_frame_format)
     {
+        MP_VERBOSE(vf, "render: texdesc.Width: %d, texdesc.Height: %d\n", texdesc.Width, texdesc.Height);
         p->c_w = texdesc.Width;
         p->c_h = texdesc.Height;
         p->d3d_frame_format = d3d_frame_format;
@@ -316,6 +356,7 @@ static struct mp_image *render(struct mp_filter *vf)
         .pInputSurface = in_view,
     };
     int frame = mp_refqueue_is_second_field(p->queue);
+    SetSuperResNvidia(vf);
     hr = ID3D11VideoContext_VideoProcessorBlt(p->video_ctx, p->video_proc,
                                               out_view, frame, 1, &stream);
     if (FAILED(hr)) {
@@ -336,8 +377,8 @@ cleanup:
 
 static void vf_d3d11vpp_process(struct mp_filter *vf)
 {
+    MP_VERBOSE(vf, "XCLOG vf_d3d11vpp_process.\n");
     struct priv *p = vf->priv;
-
     struct mp_image *in_fmt = mp_refqueue_execute_reinit(p->queue);
     if (in_fmt) {
         mp_image_pool_clear(p->pool);
@@ -346,7 +387,8 @@ static void vf_d3d11vpp_process(struct mp_filter *vf)
 
         p->params = in_fmt->params;
         p->out_params = p->params;
-
+        p->out_params.w = 2560;
+        p->out_params.h = 1440;
         p->out_params.hw_subfmt = IMGFMT_NV12;
         p->out_format = DXGI_FORMAT_NV12;
 
@@ -371,6 +413,7 @@ static void vf_d3d11vpp_process(struct mp_filter *vf)
 
 static void uninit(struct mp_filter *vf)
 {
+    MP_ERR(vf,"XCLOG uninit.\n");
     struct priv *p = vf->priv;
 
     destroy_video_proc(vf);
@@ -408,6 +451,7 @@ static struct mp_filter *vf_d3d11vpp_create(struct mp_filter *parent,
         talloc_free(options);
         return NULL;
     }
+    MP_ERR(f, "XCLOG vf_d3d11vpp_create.\n");
 
     mp_filter_add_pin(f, MP_PIN_IN, "in");
     mp_filter_add_pin(f, MP_PIN_OUT, "out");
@@ -471,7 +515,7 @@ static struct mp_filter *vf_d3d11vpp_create(struct mp_filter *parent,
         MP_MODE_OUTPUT_FIELDS |
         (p->opts->interlaced_only ? MP_MODE_INTERLACED_ONLY : 0));
     mp_refqueue_set_parity(p->queue, p->opts->field_parity);
-
+    
     return f;
 
 fail:
