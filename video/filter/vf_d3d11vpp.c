@@ -273,7 +273,7 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11VideoProcessorInputView *in_view = NULL;
     ID3D11VideoProcessorOutputView *out_view = NULL;
     struct mp_image *in = NULL, *out = NULL;
-    MP_VERBOSE(vf, "render: p->params.w: %d, p->params.h: %d\n", p->params.w, p->params.h);
+    MP_VERBOSE(vf, "XCLOG render: p->params.w: %d, p->params.h: %d\n", p->params.w, p->params.h);
     out = mp_image_pool_get(p->pool, IMGFMT_D3D11, 2560, 1440);
     if (!out) {
         MP_WARN(vf, "failed to allocate frame\n");

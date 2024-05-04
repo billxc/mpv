@@ -204,9 +204,9 @@ void mp_get_src_dst_rects(struct mp_log *log, struct mp_vo_opts *opts,
                window_w, window_h,
                margin_x[0], margin_y[0], margin_x[1], margin_y[1]);
     mp_verbose(log, "Video source: %dx%d (%d:%d)\n",
-               video->w, video->h, video->p_w, video->p_h);
+               video->w, video->h, video->p_w, video->p_h); // this is for the RTX scaled video
     mp_verbose(log, "Video display: (%d, %d) %dx%d -> (%d, %d) %dx%d\n",
-               src.x0, src.y0, sw, sh, dst.x0, dst.y0, dw, dh);
+               src.x0, src.y0, sw, sh, dst.x0, dst.y0, dw, dh); // this is for the video output, for RTX, it keeps the original size, but for VS, it is corrected.
     mp_verbose(log, "Video scale: %f/%f\n",
                (double)dw / sw, (double)dh / sh);
     mp_verbose(log, "OSD borders: l=%d t=%d r=%d b=%d\n",
