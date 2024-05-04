@@ -276,7 +276,7 @@ static struct mp_image *render(struct mp_filter *vf)
     MP_VERBOSE(vf, "XCLOG render: p->params.w: %d, p->params.h: %d\n", p->params.w, p->params.h);
     MP_VERBOSE(vf, "XCLOG render: p->out_params.w: %d, p->out_params.h: %d\n", p->out_params.w, p->out_params.h);
     out = mp_image_pool_get(p->pool, IMGFMT_D3D11, p->out_params.w, p->out_params.h);
-    MP_VERBOSE(vf, "XCLOG render: out: %p\n", out)
+    MP_VERBOSE(vf, "XCLOG render: out: %p\n", out);
     if (!out) {
         MP_WARN(vf, "failed to allocate frame\n");
         goto cleanup;
