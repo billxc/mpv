@@ -139,7 +139,7 @@ static void destroy_video_proc(struct mp_filter *vf)
 
 static void SetSuperResNvidia(struct mp_filter *vf)
 {
-    MP_VERBOSE(vf, "XCLOG SetSuperResNvidia.\n");
+    // MP_VERBOSE(vf, "XCLOG SetSuperResNvidia.\n");
     struct priv *p = vf->priv;
      GUID kNvidiaPPEInterfaceGUID = {
         0xd43ce1b3,
@@ -164,7 +164,7 @@ static void SetSuperResNvidia(struct mp_filter *vf)
     if (FAILED(hr)) {
         MP_ERR(vf, "XCLOG Failed to enable Nvidia RTX Super RES. Error code: %x\n", hr);
     } else {
-        MP_VERBOSE(vf, "XCLOG Enabled Nvidia RTX Super RES.\n");
+        // MP_VERBOSE(vf, "XCLOG Enabled Nvidia RTX Super RES.\n");
     }
 }
 
