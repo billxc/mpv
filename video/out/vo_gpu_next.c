@@ -1208,6 +1208,7 @@ static void resize(struct vo *vo)
     struct priv *p = vo->priv;
     struct mp_rect src, dst;
     struct mp_osd_res osd;
+    MP_VERBOSE(vo, "gpu-next vo_get_src_dst_rects");
     vo_get_src_dst_rects(vo, &src, &dst, &osd);
     if (vo->dwidth && vo->dheight) {
         gpu_ctx_resize(p->context, vo->dwidth, vo->dheight);
