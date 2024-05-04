@@ -290,9 +290,9 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11Texture2D *d3d_tex = (void *)in->planes[0];
     int d3d_subindex = (intptr_t)in->planes[1];
 
-    MP_VERBOSE(vf,"before out->params.crop: %d, %d, %d, %d\n", out->params.x0, out->params.y0, out->params.x1, out->params.y1);
+    MP_VERBOSE(vf,"before out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
     mp_image_copy_attributes(out, in);
-    MP_VERBOSE(vf,"after out->params.crop: %d, %d, %d, %d\n", out->params.x0, out->params.y0, out->params.x1, out->params.y1);
+    MP_VERBOSE(vf,"after out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
 
     // SHOULD NOT COPY THE HEIGHT AND WIDTH
     mp_image_set_size(out, p->out_params.w, p->out_params.w);
