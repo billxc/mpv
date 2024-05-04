@@ -274,7 +274,9 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11VideoProcessorOutputView *out_view = NULL;
     struct mp_image *in = NULL, *out = NULL;
     MP_VERBOSE(vf, "XCLOG render: p->params.w: %d, p->params.h: %d\n", p->params.w, p->params.h);
-    out = mp_image_pool_get(p->pool, IMGFMT_D3D11, 2560, 1440);
+    MP_VERBOSE(vf, "XCLOG render: p->out_params.w: %d, p->out_params.h: %d\n", p->out_params.w, p->out_params.h);
+    out = mp_image_pool_get(p->pool, IMGFMT_D3D11, p->out_params.w, p->out_params.h);
+    MP_VERBOSE(vf, "XCLOG render: out: %p\n", out)
     if (!out) {
         MP_WARN(vf, "failed to allocate frame\n");
         goto cleanup;
@@ -288,7 +290,13 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11Texture2D *d3d_tex = (void *)in->planes[0];
     int d3d_subindex = (intptr_t)in->planes[1];
 
+    MP_VERBOSE(vf,"before out->params.crop: %d, %d, %d, %d\n", out->params.x, out->params.y, out->params.w, out->params.h);
     mp_image_copy_attributes(out, in);
+    MP_VERBOSE(vf,"after out->params.crop: %d, %d, %d, %d\n", out->params.x, out->params.y, out->params.w, out->params.h);
+
+    // SHOULD NOT COPY THE HEIGHT AND WIDTH
+    mp_image_set_size(out, p->out_params.w, p->out_params.w);
+    mp_image_crop(out, 0, 0, p->out_params.w, p->out_params.h);
 
     D3D11_VIDEO_FRAME_FORMAT d3d_frame_format;
     if (!mp_refqueue_should_deint(p->queue)) {
