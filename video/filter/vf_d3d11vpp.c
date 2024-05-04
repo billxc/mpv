@@ -297,7 +297,7 @@ static struct mp_image *render(struct mp_filter *vf)
     // SHOULD NOT COPY THE HEIGHT AND WIDTH
 
     mp_image_set_size(out, p->out_params.w, p->out_params.h);
-    out.params.mp_rect = struct mp_rect();
+    out->params.crop = struct mp_rect();
     MP_VERBOSE(vf,"after reset out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
     MP_VERBOSE(vf,"after reset out(w,h,params.w,params.h) %d, %d, %d, %d\n", out->w, out->h, out->params.w, out->params.h);
 
