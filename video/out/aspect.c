@@ -134,6 +134,10 @@ void mp_get_src_dst_rects(struct mp_log *log, struct mp_vo_opts *opts,
     int src_dw, src_dh;
 
     mp_image_params_get_dsize(video, &src_dw, &src_dh);
+
+    MP_VERBOSE("mp_get_src_dst_rects src_w: %d, src_h: %d, src_dw: %d, src_dh: %d, window_w: %d, window_h: %d, monitor_par: %f\n"
+                                    , src_w,    src_h,     src_dw,     src_dh,     window_w,     window_h,     monitor_par);
+
     window_w = MPMAX(1, window_w);
     window_h = MPMAX(1, window_h);
 
@@ -148,6 +152,7 @@ void mp_get_src_dst_rects(struct mp_log *log, struct mp_vo_opts *opts,
     int vid_window_h = window_h - margin_y[0] - margin_y[1];
 
     struct mp_rect dst = {0, 0, window_w, window_h};
+    // dst init with window size
     struct mp_rect src = {0, 0, src_w,    src_h};
     if (mp_image_crop_valid(video))
         src = video->crop;
@@ -208,7 +213,7 @@ void mp_get_src_dst_rects(struct mp_log *log, struct mp_vo_opts *opts,
     mp_verbose(log, "Video display: (%d, %d) %dx%d -> (%d, %d) %dx%d\n",
                src.x0, src.y0, sw, sh, dst.x0, dst.y0, dw, dh); // this is for the video output, for RTX, it keeps the original size, but for VS, it is corrected.
     mp_verbose(log, "Video scale: %f/%f\n",
-               (double)dw / sw, (double)dh / sh);
+               (double)dw / sw, (double)dh / sh); //dest width / source width
     mp_verbose(log, "OSD borders: l=%d t=%d r=%d b=%d\n",
                osd.ml, osd.mt, osd.mr, osd.mb);
     mp_verbose(log, "Video borders: l=%d t=%d r=%d b=%d\n",
