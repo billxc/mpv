@@ -135,8 +135,8 @@ void mp_get_src_dst_rects(struct mp_log *log, struct mp_vo_opts *opts,
 
     mp_image_params_get_dsize(video, &src_dw, &src_dh);
 
-    MP_VERBOSE("mp_get_src_dst_rects src_w: %d, src_h: %d, src_dw: %d, src_dh: %d, window_w: %d, window_h: %d, monitor_par: %f\n"
-                                    , src_w,    src_h,     src_dw,     src_dh,     window_w,     window_h,     monitor_par);
+    MP_VERBOSE("mp_get_src_dst_rects src_w: %d, src_h: %d, src_dw: %d, src_dh: %d, window_w: %d, window_h: %d, monitor_par: %f\n",
+                                     src_w,     src_h,     src_dw,     src_dh,     window_w,     window_h,     monitor_par);
 
     window_w = MPMAX(1, window_w);
     window_h = MPMAX(1, window_h);
