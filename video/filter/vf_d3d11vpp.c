@@ -295,9 +295,11 @@ static struct mp_image *render(struct mp_filter *vf)
     MP_VERBOSE(vf,"after out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
 
     // SHOULD NOT COPY THE HEIGHT AND WIDTH
+
     mp_image_set_size(out, p->out_params.w, p->out_params.h);
-    mp_image_crop(out, 0, 0, p->out_params.w, p->out_params.h);
+    out.params.mp_rect = struct mp_rect();
     MP_VERBOSE(vf,"after reset out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
+    MP_VERBOSE(vf,"after reset out(w,h,params.w,params.h) %d, %d, %d, %d\n", out->w, out->h, out->params.w, out->params.h);
 
     D3D11_VIDEO_FRAME_FORMAT d3d_frame_format;
     if (!mp_refqueue_should_deint(p->queue)) {
