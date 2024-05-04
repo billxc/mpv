@@ -154,6 +154,7 @@ void mp_get_src_dst_rects(struct mp_log *log, struct mp_vo_opts *opts,
     struct mp_rect dst = {0, 0, window_w, window_h};
     // dst init with window size
     struct mp_rect src = {0, 0, src_w,    src_h};
+    // src init with src size
     if (mp_image_crop_valid(video))
         src = video->crop;
 
