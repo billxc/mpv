@@ -399,8 +399,8 @@ static void vf_d3d11vpp_process(struct mp_filter *vf)
 
         p->params = in_fmt->params;
         p->out_params = p->params;
-        p->out_params.w = 2560;
-        p->out_params.h = 1440;
+        p->out_params.w = 3840;
+        p->out_params.h = 2160;
         p->out_params.hw_subfmt = IMGFMT_NV12;
         p->out_format = DXGI_FORMAT_NV12;
 
