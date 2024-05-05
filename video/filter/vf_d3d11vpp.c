@@ -42,15 +42,23 @@
 #define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_INVERSE_TELECINE 0x10
 #define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_FRAME_RATE_CONVERSION 0x20
 
-#define SUPER_RESOLUTION_NVIDIA 0x1
-#define SUPER_RESOLUTION_INTEL 0x2
+#define SUPER_RESOLUTION_OFF 0
+#define SUPER_RESOLUTION_NVIDIA 1
+#define SUPER_RESOLUTION_INTEL 2
+
+#define SUPER_RESOLUTION_720P -1
+#define SUPER_RESOLUTION_1080P 0 // default
+#define SUPER_RESOLUTION_1440P 1
+#define SUPER_RESOLUTION_2160P 2
+
 
 struct opts {
     bool deint_enabled;
     bool interlaced_only;
     int mode;
     int field_parity;
-    int super_res;
+    int super_res_mode;
+    int super_res_target;
 };
 
 struct priv {
@@ -300,7 +308,7 @@ static struct mp_image *render(struct mp_filter *vf)
     MP_VERBOSE(vf,"after out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
 
     // SHOULD NOT COPY THE HEIGHT AND WIDTH
-    if (p->opts->super_res) {
+    if (p->opts->super_res_mode) {
         mp_image_set_size(out, p->out_params.w, p->out_params.h);
         out->params.crop = aaa_crop;
         MP_VERBOSE(vf,"after reset out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
@@ -404,9 +412,25 @@ static void vf_d3d11vpp_process(struct mp_filter *vf)
 
         p->params = in_fmt->params;
         p->out_params = p->params;
-        if(p->opts->super_res) {
-            p->out_params.w = 3840;
-            p->out_params.h = 2160;
+        if(p->opts->super_res_mode) {
+            switch (p->opts->super_res_target) {
+                case SUPER_RESOLUTION_720P:
+                    p->out_params.w = 1280;
+                    p->out_params.h = 720;
+                    break;
+                case SUPER_RESOLUTION_1080P:
+                    p->out_params.w = 1920;
+                    p->out_params.h = 1080;
+                    break;
+                case SUPER_RESOLUTION_1440P:
+                    p->out_params.w = 2560;
+                    p->out_params.h = 1440;
+                    break;
+                case SUPER_RESOLUTION_2160P:
+                    p->out_params.w = 3840;
+                    p->out_params.h = 2160;
+                    break;
+            }
         }
         p->out_params.hw_subfmt = IMGFMT_NV12;
         p->out_format = DXGI_FORMAT_NV12;
@@ -557,10 +581,15 @@ static const m_option_t vf_opts_fields[] = {
         {"tff", MP_FIELD_PARITY_TFF},
         {"bff", MP_FIELD_PARITY_BFF},
         {"auto", MP_FIELD_PARITY_AUTO})},
-    {"super-res", OPT_CHOICE(super_res,
+    {"super-res-mode", OPT_CHOICE(super_res_mode,
         {"intel", SUPER_RESOLUTION_INTEL},
         {"nvidia", SUPER_RESOLUTION_NVIDIA},
-        {"none", 0})},
+        {"none", SUPER_RESOLUTION_OFF})},
+    {"super-res-target", OPT_CHOICE(super_res_target,
+        {"720p", SUPER_RESOLUTION_720P},
+        {"1080p", SUPER_RESOLUTION_1080P},
+        {"1440p", SUPER_RESOLUTION_1440P},
+        {"2160p", SUPER_RESOLUTION_2160P}},
     {0}
 };
 
