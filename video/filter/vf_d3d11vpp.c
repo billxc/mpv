@@ -42,11 +42,15 @@
 #define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_INVERSE_TELECINE 0x10
 #define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_FRAME_RATE_CONVERSION 0x20
 
+#define SUPER_RESOLUTION_NVIDIA 0x1
+#define SUPER_RESOLUTION_INTEL 0x2
+
 struct opts {
     bool deint_enabled;
     bool interlaced_only;
     int mode;
     int field_parity;
+    int super_res;
 };
 
 struct priv {
@@ -68,6 +72,7 @@ struct priv {
 
     struct mp_image_params params, out_params;
     int c_w, c_h;
+    bool super_res_enabled;
 
     struct mp_image_pool *pool;
 
@@ -162,9 +167,8 @@ static void SetSuperResNvidia(struct mp_filter *vf)
         sizeof(stream_extension_info), &stream_extension_info);
 
     if (FAILED(hr)) {
+        p->super_res_enabled = false;
         MP_ERR(vf, "XCLOG Failed to enable Nvidia RTX Super RES. Error code: %x\n", hr);
-    } else {
-        // MP_VERBOSE(vf, "XCLOG Enabled Nvidia RTX Super RES.\n");
     }
 }
 
@@ -296,11 +300,12 @@ static struct mp_image *render(struct mp_filter *vf)
     MP_VERBOSE(vf,"after out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
 
     // SHOULD NOT COPY THE HEIGHT AND WIDTH
-
-    mp_image_set_size(out, p->out_params.w, p->out_params.h);
-    out->params.crop = aaa_crop;
-    MP_VERBOSE(vf,"after reset out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
-    MP_VERBOSE(vf,"after reset out(w,h,params.w,params.h) %d, %d, %d, %d\n", out->w, out->h, out->params.w, out->params.h);
+    if (p->opts->super_res) {
+        mp_image_set_size(out, p->out_params.w, p->out_params.h);
+        out->params.crop = aaa_crop;
+        MP_VERBOSE(vf,"after reset out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
+        MP_VERBOSE(vf,"after reset out(w,h,params.w,params.h) %d, %d, %d, %d\n", out->w, out->h, out->params.w, out->params.h);
+    }
 
     D3D11_VIDEO_FRAME_FORMAT d3d_frame_format;
     if (!mp_refqueue_should_deint(p->queue)) {
@@ -399,8 +404,10 @@ static void vf_d3d11vpp_process(struct mp_filter *vf)
 
         p->params = in_fmt->params;
         p->out_params = p->params;
-        p->out_params.w = 3840;
-        p->out_params.h = 2160;
+        if(p->opts->super_res) {
+            p->out_params.w = 3840;
+            p->out_params.h = 2160;
+        }
         p->out_params.hw_subfmt = IMGFMT_NV12;
         p->out_format = DXGI_FORMAT_NV12;
 
@@ -550,6 +557,10 @@ static const m_option_t vf_opts_fields[] = {
         {"tff", MP_FIELD_PARITY_TFF},
         {"bff", MP_FIELD_PARITY_BFF},
         {"auto", MP_FIELD_PARITY_AUTO})},
+    {"super-res", OPT_CHOICE(
+        {"intel", SUPER_RESOLUTION_INTEL},
+        {"nvidia", SUPER_RESOLUTION_NVIDIA},
+        {"none", 0})},
     {0}
 };
 
