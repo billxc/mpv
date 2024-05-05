@@ -46,10 +46,11 @@
 #define SUPER_RESOLUTION_NVIDIA 1
 #define SUPER_RESOLUTION_INTEL 2
 
-#define SUPER_RESOLUTION_720P -1
-#define SUPER_RESOLUTION_1080P 0 // default
-#define SUPER_RESOLUTION_1440P 1
-#define SUPER_RESOLUTION_2160P 2
+#define SUPER_RESOLUTION_AUTO 0
+#define SUPER_RESOLUTION_720P 1
+#define SUPER_RESOLUTION_1080P 2
+#define SUPER_RESOLUTION_1440P 3
+#define SUPER_RESOLUTION_2160P 4
 
 
 struct opts {
@@ -418,6 +419,7 @@ static void vf_d3d11vpp_process(struct mp_filter *vf)
                     p->out_params.w = 1280;
                     p->out_params.h = 720;
                     break;
+                case SUPER_RESOLUTION_AUTO:
                 case SUPER_RESOLUTION_1080P:
                     p->out_params.w = 1920;
                     p->out_params.h = 1080;
@@ -589,7 +591,9 @@ static const m_option_t vf_opts_fields[] = {
         {"720p", SUPER_RESOLUTION_720P},
         {"1080p", SUPER_RESOLUTION_1080P},
         {"1440p", SUPER_RESOLUTION_1440P},
-        {"2160p", SUPER_RESOLUTION_2160P}},
+        {"2160p", SUPER_RESOLUTION_2160P},
+        {"auto", SUPER_RESOLUTION_AUTO}
+    },
     {0}
 };
 
