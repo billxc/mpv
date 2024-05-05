@@ -605,6 +605,8 @@ const struct mp_user_filter_entry vf_d3d11vpp = {
             .deint_enabled = true,
             .mode = D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BOB,
             .field_parity = MP_FIELD_PARITY_AUTO,
+            .super_res_mode = SUPER_RESOLUTION_OFF,
+            .super_res_target = SUPER_RESOLUTION_AUTO,
         },
         .options = vf_opts_fields,
     },
