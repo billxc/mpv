@@ -557,7 +557,7 @@ static const m_option_t vf_opts_fields[] = {
         {"tff", MP_FIELD_PARITY_TFF},
         {"bff", MP_FIELD_PARITY_BFF},
         {"auto", MP_FIELD_PARITY_AUTO})},
-    {"super-res", OPT_CHOICE(
+    {"super-res", OPT_CHOICE(super_res,
         {"intel", SUPER_RESOLUTION_INTEL},
         {"nvidia", SUPER_RESOLUTION_NVIDIA},
         {"none", 0})},
