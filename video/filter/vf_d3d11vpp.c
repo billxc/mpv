@@ -592,8 +592,7 @@ static const m_option_t vf_opts_fields[] = {
         {"1080p", SUPER_RESOLUTION_1080P},
         {"1440p", SUPER_RESOLUTION_1440P},
         {"2160p", SUPER_RESOLUTION_2160P},
-        {"auto", SUPER_RESOLUTION_AUTO}
-    },
+        {"auto", SUPER_RESOLUTION_AUTO})},
     {0}
 };
 
