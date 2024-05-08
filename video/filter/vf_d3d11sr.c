@@ -54,10 +54,6 @@
 
 
 struct opts {
-    bool deint_enabled;
-    bool interlaced_only;
-    int mode;
-    int field_parity;
     int super_res_mode;
     int super_res_target;
 };
@@ -206,32 +202,7 @@ static int recreate_video_proc(struct mp_filter *vf)
     if (FAILED(hr))
         goto fail;
 
-    MP_VERBOSE(vf, "Found %d rate conversion caps. Looking for caps=0x%x.\n",
-               (int)caps.RateConversionCapsCount, p->opts->mode);
-
-    int rindex = -1;
-    for (int n = 0; n < caps.RateConversionCapsCount; n++) {
-        D3D11_VIDEO_PROCESSOR_RATE_CONVERSION_CAPS rcaps;
-        hr = ID3D11VideoProcessorEnumerator_GetVideoProcessorRateConversionCaps
-                (p->vp_enum, n, &rcaps);
-        if (FAILED(hr))
-            goto fail;
-        MP_VERBOSE(vf, "  - %d: 0x%08x\n", n, (unsigned)rcaps.ProcessorCaps);
-        if (rcaps.ProcessorCaps & p->opts->mode) {
-            MP_VERBOSE(vf, "       (matching)\n");
-            if (rindex < 0)
-                rindex = n;
-        }
-    }
-
-    if (rindex < 0) {
-        MP_WARN(vf, "No fitting video processor found, picking #0.\n");
-        rindex = 0;
-    }
-
-    // TODO: so, how do we select which rate conversion mode the processor uses?
-
-    hr = ID3D11VideoDevice_CreateVideoProcessor(p->video_dev, p->vp_enum, rindex,
+    hr = ID3D11VideoDevice_CreateVideoProcessor(p->video_dev, p->vp_enum, 0,
                                                 &p->video_proc);
     if (FAILED(hr)) {
         MP_ERR(vf, "Failed to create D3D11 video processor.\n");
@@ -244,21 +215,20 @@ static int recreate_video_proc(struct mp_filter *vf)
         .bottom = p->params.h,
     };
 
-
     ID3D11VideoContext_VideoProcessorSetStreamSourceRect(p->video_ctx,
                                                          p->video_proc,
                                                          0, TRUE, &src_rc);
 
     // This is supposed to stop drivers from fucking up the video quality.
-    ID3D11VideoContext_VideoProcessorSetStreamAutoProcessingMode(p->video_ctx,
-                                                                 p->video_proc,
-                                                                 0, FALSE);
+    // ID3D11VideoContext_VideoProcessorSetStreamAutoProcessingMode(p->video_ctx,
+    //                                                              p->video_proc,
+    //                                                              0, FALSE);
 
-    ID3D11VideoContext_VideoProcessorSetStreamOutputRate(p->video_ctx,
-                                                         p->video_proc,
-                                                         0,
-                                                         D3D11_VIDEO_PROCESSOR_OUTPUT_RATE_NORMAL,
-                                                         FALSE, 0);
+    // ID3D11VideoContext_VideoProcessorSetStreamOutputRate(p->video_ctx,
+    //                                                      p->video_proc,
+    //                                                      0,
+    //                                                      D3D11_VIDEO_PROCESSOR_OUTPUT_RATE_NORMAL,
+    //                                                      FALSE, 0);
 
     D3D11_VIDEO_PROCESSOR_COLOR_SPACE csp = {
         .YCbCr_Matrix = p->params.repr.sys != PL_COLOR_SYSTEM_BT_601,
@@ -317,13 +287,7 @@ static struct mp_image *render(struct mp_filter *vf)
     }
 
     D3D11_VIDEO_FRAME_FORMAT d3d_frame_format;
-    if (!mp_refqueue_should_deint(p->queue)) {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
-    } else if (mp_refqueue_top_field_first(p->queue)) {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_TOP_FIELD_FIRST;
-    } else {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_BOTTOM_FIELD_FIRST;
-    }
+    d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
 
     D3D11_TEXTURE2D_DESC texdesc;
     ID3D11Texture2D_GetDesc(d3d_tex, &texdesc);
@@ -443,17 +407,7 @@ static void vf_d3d11vpp_process(struct mp_filter *vf)
     if (!mp_refqueue_can_output(p->queue))
         return;
 
-    if (!mp_refqueue_should_deint(p->queue) && !p->require_filtering) {
-        // no filtering
-        struct mp_image *in = mp_image_new_ref(mp_refqueue_get(p->queue, 0));
-        if (!in) {
-            mp_filter_internal_mark_failed(vf);
-            return;
-        }
-        mp_refqueue_write_out_pin(p->queue, in);
-    } else {
-        mp_refqueue_write_out_pin(p->queue, render(vf));
-    }
+    mp_refqueue_write_out_pin(p->queue, render(vf));
 }
 
 static void uninit(struct mp_filter *vf)
@@ -555,11 +509,6 @@ static struct mp_filter *vf_d3d11vpp_create(struct mp_filter *parent,
     mp_refqueue_add_in_format(p->queue, IMGFMT_D3D11, 0);
 
     mp_refqueue_set_refs(p->queue, 0, 0);
-    mp_refqueue_set_mode(p->queue,
-        (p->opts->deint_enabled ? MP_MODE_DEINT : 0) |
-        MP_MODE_OUTPUT_FIELDS |
-        (p->opts->interlaced_only ? MP_MODE_INTERLACED_ONLY : 0));
-    mp_refqueue_set_parity(p->queue, p->opts->field_parity);
     
     return f;
 
@@ -570,19 +519,6 @@ fail:
 
 #define OPT_BASE_STRUCT struct opts
 static const m_option_t vf_opts_fields[] = {
-    {"deint", OPT_BOOL(deint_enabled)},
-    {"interlaced-only", OPT_BOOL(interlaced_only)},
-    {"mode", OPT_CHOICE(mode,
-        {"blend", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BLEND},
-        {"bob", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BOB},
-        {"adaptive", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_ADAPTIVE},
-        {"mocomp", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_MOTION_COMPENSATION},
-        {"ivctc", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_INVERSE_TELECINE},
-        {"none", 0})},
-    {"parity", OPT_CHOICE(field_parity,
-        {"tff", MP_FIELD_PARITY_TFF},
-        {"bff", MP_FIELD_PARITY_BFF},
-        {"auto", MP_FIELD_PARITY_AUTO})},
     {"super-res-mode", OPT_CHOICE(super_res_mode,
         {"intel", SUPER_RESOLUTION_INTEL},
         {"nvidia", SUPER_RESOLUTION_NVIDIA},
@@ -602,9 +538,6 @@ const struct mp_user_filter_entry vf_d3d11vpp = {
         .name = "d3d11vpp",
         .priv_size = sizeof(OPT_BASE_STRUCT),
         .priv_defaults = &(const OPT_BASE_STRUCT) {
-            .deint_enabled = true,
-            .mode = D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BOB,
-            .field_parity = MP_FIELD_PARITY_AUTO,
             .super_res_mode = SUPER_RESOLUTION_OFF,
             .super_res_target = SUPER_RESOLUTION_AUTO,
         },
