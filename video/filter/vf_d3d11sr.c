@@ -51,6 +51,9 @@
 #define SUPER_RESOLUTION_1080P 2
 #define SUPER_RESOLUTION_1440P 3
 #define SUPER_RESOLUTION_2160P 4
+#define SUPER_RESOLUTION_1_5X 5
+#define SUPER_RESOLUTION_2X 6
+#define SUPER_RESOLUTION_3X 7
 
 
 struct opts {
@@ -58,8 +61,8 @@ struct opts {
     bool interlaced_only;
     int mode;
     int field_parity;
-    int super_res_mode;
-    int super_res_target;
+    int mode;
+    int scale;
 };
 
 struct priv {
@@ -405,7 +408,7 @@ static struct mp_image *render(struct mp_filter *vf)
     mp_image_copy_attributes(out, in);
 
     // SHOULD NOT COPY THE HEIGHT AND WIDTH
-    if (p->opts->super_res_mode) {
+    if (p->opts->mode) {
         mp_image_set_size(out, p->out_params.w, p->out_params.h);
         out->params.crop = aaa_crop;
     }
@@ -467,7 +470,7 @@ static struct mp_image *render(struct mp_filter *vf)
         .pInputSurface = in_view,
     };
     int frame = mp_refqueue_is_second_field(p->queue);
-    SetSuperResNvidia(vf);
+    SetSuperResIntel(vf);
     hr = ID3D11VideoContext_VideoProcessorBlt(p->video_ctx, p->video_proc,
                                               out_view, frame, 1, &stream);
     if (FAILED(hr)) {
@@ -497,9 +500,9 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
 
         p->params = in_fmt->params;
         p->out_params = p->params;
-        if(p->opts->super_res_mode) {
+        if(p->opts->mode) {
             int window_w,window_h;
-            switch (p->opts->super_res_target) {
+            switch (p->opts->scale) {
                 case SUPER_RESOLUTION_720P:
                     window_w = 1280;
                     window_h = 720;
@@ -667,11 +670,14 @@ static const m_option_t vf_opts_fields[] = {
         {"tff", MP_FIELD_PARITY_TFF},
         {"bff", MP_FIELD_PARITY_BFF},
         {"auto", MP_FIELD_PARITY_AUTO})},
-    {"super-res-mode", OPT_CHOICE(super_res_mode,
+    {"mode", OPT_CHOICE(mode,
         {"intel", SUPER_RESOLUTION_INTEL},
         {"nvidia", SUPER_RESOLUTION_NVIDIA},
         {"none", SUPER_RESOLUTION_OFF})},
-    {"super-res-target", OPT_CHOICE(super_res_target,
+    {"scale", OPT_CHOICE(scale,
+        {"1.5X", SUPER_RESOLUTION_720P},
+        {"2X", SUPER_RESOLUTION_720P},
+        {"3X", SUPER_RESOLUTION_720P},
         {"720p", SUPER_RESOLUTION_720P},
         {"1080p", SUPER_RESOLUTION_1080P},
         {"1440p", SUPER_RESOLUTION_1440P},
@@ -689,8 +695,8 @@ const struct mp_user_filter_entry vf_d3d11sr = {
             .deint_enabled = true,
             .mode = D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BOB,
             .field_parity = MP_FIELD_PARITY_AUTO,
-            .super_res_mode = SUPER_RESOLUTION_OFF,
-            .super_res_target = SUPER_RESOLUTION_AUTO,
+            .mode = SUPER_RESOLUTION_OFF,
+            .scale = SUPER_RESOLUTION_AUTO,
         },
         .options = vf_opts_fields,
     },
