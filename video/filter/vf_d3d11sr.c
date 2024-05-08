@@ -202,6 +202,87 @@ static void SetSuperResNvidia(struct mp_filter *vf)
     }
 }
 
+static void SetSuperResIntel(struct mp_filter *vf)
+{
+    struct priv *p = vf->priv;
+
+    GUID GUID_INTEL_VPE_INTERFACE = {
+		  0xedd1d4b9,
+		  0x8659,
+		  0x4cbc,
+		  {0xa4, 0xd6, 0x98, 0x31, 0xa2, 0x16, 0x3a, 0xc3} };
+
+    enum : UINT {
+        kIntelVpeFnVersion = 0x01,
+        kIntelVpeFnMode = 0x20,
+        kIntelVpeFnScaling = 0x37,
+    };
+
+    enum : UINT {
+        kIntelVpeVersion3 = 0x0003,
+    };
+
+    enum : UINT {
+        kIntelVpeModeNone = 0x0,
+        kIntelVpeModePreproc = 0x01,
+    };
+
+    enum : UINT {
+        kIntelVpeScalingDefault = 0x0,
+        kIntelVpeScalingSuperResolution = 0x2,
+    };
+
+    struct IntelVpeExt {
+        UINT function;
+        void* param;
+    };
+
+    struct IntelVpeExt ext = {};
+    UINT param = 0;
+    ext.param = &param;
+
+    ext.function = kIntelVpeFnVersion;
+    param = kIntelVpeVersion3;
+    HRESULT hr;
+    
+    hr = ID3D11VideoContext_VideoProcessorSetOutputExtension(
+        p->video_ctx,p->video_proc,
+        &GUID_INTEL_VPE_INTERFACE, sizeof(ext), &ext
+    );
+    
+    if (FAILED(hr)) {
+        p->super_res_enabled = false;
+        MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
+        return;
+    }
+
+    ext.function = kIntelVpeFnMode;
+    param = kIntelVpeModePreproc;
+    hr = ID3D11VideoContext_VideoProcessorSetOutputExtension(
+        p->video_ctx,p->video_proc,
+        &GUID_INTEL_VPE_INTERFACE, sizeof(ext), &ext
+    );
+    
+    if (FAILED(hr)) {
+        p->super_res_enabled = false;
+        MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
+        return;
+    }
+
+    ext.function = kIntelVpeFnScaling;
+    param = kIntelVpeScalingSuperResolution;
+
+    hr = ID3D11VideoContext_VideoProcessorSetStreamExtension(
+        p->video_ctx,p->video_proc,0,&GUID_INTEL_VPE_INTERFACE,
+        sizeof(ext), &ext
+    );
+    
+    if (FAILED(hr)) {
+        p->super_res_enabled = false;
+        MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
+    }
+}
+
 static int recreate_video_proc(struct mp_filter *vf)
 {
     struct priv *p = vf->priv;
