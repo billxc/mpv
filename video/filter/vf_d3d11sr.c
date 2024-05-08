@@ -59,7 +59,6 @@
 struct opts {
     bool deint_enabled;
     bool interlaced_only;
-    int mode;
     int field_parity;
     int mode;
     int scale;
@@ -310,32 +309,7 @@ static int recreate_video_proc(struct mp_filter *vf)
     if (FAILED(hr))
         goto fail;
 
-    MP_VERBOSE(vf, "Found %d rate conversion caps. Looking for caps=0x%x.\n",
-               (int)caps.RateConversionCapsCount, p->opts->mode);
-
-    int rindex = -1;
-    for (int n = 0; n < caps.RateConversionCapsCount; n++) {
-        D3D11_VIDEO_PROCESSOR_RATE_CONVERSION_CAPS rcaps;
-        hr = ID3D11VideoProcessorEnumerator_GetVideoProcessorRateConversionCaps
-                (p->vp_enum, n, &rcaps);
-        if (FAILED(hr))
-            goto fail;
-        MP_VERBOSE(vf, "  - %d: 0x%08x\n", n, (unsigned)rcaps.ProcessorCaps);
-        if (rcaps.ProcessorCaps & p->opts->mode) {
-            MP_VERBOSE(vf, "       (matching)\n");
-            if (rindex < 0)
-                rindex = n;
-        }
-    }
-
-    if (rindex < 0) {
-        MP_WARN(vf, "No fitting video processor found, picking #0.\n");
-        rindex = 0;
-    }
-
-    // TODO: so, how do we select which rate conversion mode the processor uses?
-
-    hr = ID3D11VideoDevice_CreateVideoProcessor(p->video_dev, p->vp_enum, rindex,
+    hr = ID3D11VideoDevice_CreateVideoProcessor(p->video_dev, p->vp_enum, 0,
                                                 &p->video_proc);
     if (FAILED(hr)) {
         MP_ERR(vf, "Failed to create D3D11 video processor.\n");
@@ -659,17 +633,7 @@ fail:
 static const m_option_t vf_opts_fields[] = {
     {"deint", OPT_BOOL(deint_enabled)},
     {"interlaced-only", OPT_BOOL(interlaced_only)},
-    {"mode", OPT_CHOICE(mode,
-        {"blend", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BLEND},
-        {"bob", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BOB},
-        {"adaptive", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_ADAPTIVE},
-        {"mocomp", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_MOTION_COMPENSATION},
-        {"ivctc", D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_INVERSE_TELECINE},
-        {"none", 0})},
-    {"parity", OPT_CHOICE(field_parity,
-        {"tff", MP_FIELD_PARITY_TFF},
-        {"bff", MP_FIELD_PARITY_BFF},
-        {"auto", MP_FIELD_PARITY_AUTO})},
+
     {"mode", OPT_CHOICE(mode,
         {"intel", SUPER_RESOLUTION_INTEL},
         {"nvidia", SUPER_RESOLUTION_NVIDIA},
@@ -693,7 +657,6 @@ const struct mp_user_filter_entry vf_d3d11sr = {
         .priv_size = sizeof(OPT_BASE_STRUCT),
         .priv_defaults = &(const OPT_BASE_STRUCT) {
             .deint_enabled = true,
-            .mode = D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BOB,
             .field_parity = MP_FIELD_PARITY_AUTO,
             .mode = SUPER_RESOLUTION_OFF,
             .scale = SUPER_RESOLUTION_AUTO,
