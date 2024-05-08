@@ -103,7 +103,6 @@ static struct mp_image *alloc_pool(void *pctx, int fmt, int w, int h)
     HRESULT hr;
 
     ID3D11Texture2D *texture = NULL;
-    MP_VERBOSE(vf, "XCLOG alloc_pool, w: %d, h: %d\n", w, h);
     D3D11_TEXTURE2D_DESC texdesc = {
         .Width = w,
         .Height = h,
@@ -139,7 +138,6 @@ static void flush_frames(struct mp_filter *vf)
 
 static void destroy_video_proc(struct mp_filter *vf)
 {
-    MP_ERR(vf, "XCLOG  destroy_video_proc.\n");
     struct priv *p = vf->priv;
 
     if (p->video_proc)
@@ -177,7 +175,6 @@ static void get_render_size(int input_w, int input_h,
 
 static void SetSuperResNvidia(struct mp_filter *vf)
 {
-    // MP_VERBOSE(vf, "XCLOG SetSuperResNvidia.\n");
     struct priv *p = vf->priv;
      GUID kNvidiaPPEInterfaceGUID = {
         0xd43ce1b3,
@@ -207,12 +204,10 @@ static void SetSuperResNvidia(struct mp_filter *vf)
 
 static int recreate_video_proc(struct mp_filter *vf)
 {
-    MP_ERR(vf, "XCLOG Recreating video processor.\n");
     struct priv *p = vf->priv;
     HRESULT hr;
 
     destroy_video_proc(vf);
-    MP_INFO(vf,"XCLOG recreate_video_proc w: %d,h %d\n",p->out_params.w,p->out_params.h);
 
     D3D11_VIDEO_PROCESSOR_CONTENT_DESC vpdesc = {
         .InputFrameFormat = p->d3d_frame_format,
@@ -311,9 +306,7 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11VideoProcessorInputView *in_view = NULL;
     ID3D11VideoProcessorOutputView *out_view = NULL;
     struct mp_image *in = NULL, *out = NULL;
-    MP_INFO(vf,"XCLOG mp_image_pool_get w: %d,h %d\n",p->out_params.w,p->out_params.h);
     out = mp_image_pool_get(p->pool, IMGFMT_D3D11, p->out_params.w, p->out_params.h);
-    MP_VERBOSE(vf, "XCLOG render: out: %p\n", out);
     if (!out) {
         MP_WARN(vf, "failed to allocate frame\n");
         goto cleanup;
@@ -328,16 +321,12 @@ static struct mp_image *render(struct mp_filter *vf)
     int d3d_subindex = (intptr_t)in->planes[1];
 
     struct mp_rect aaa_crop = out->params.crop;
-    MP_VERBOSE(vf,"before out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
     mp_image_copy_attributes(out, in);
-    MP_VERBOSE(vf,"after out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
 
     // SHOULD NOT COPY THE HEIGHT AND WIDTH
     if (p->opts->super_res_mode) {
         mp_image_set_size(out, p->out_params.w, p->out_params.h);
         out->params.crop = aaa_crop;
-        MP_VERBOSE(vf,"after reset out->params.crop: %d, %d, %d, %d\n", out->params.crop.x0, out->params.crop.y0, out->params.crop.x1, out->params.crop.y1);
-        MP_VERBOSE(vf,"after reset out(w,h,params.w,params.h) %d, %d, %d, %d\n", out->w, out->h, out->params.w, out->params.h);
     }
 
     D3D11_VIDEO_FRAME_FORMAT d3d_frame_format;
@@ -354,7 +343,6 @@ static struct mp_image *render(struct mp_filter *vf)
     if (!p->video_proc || p->c_w != texdesc.Width || p->c_h != texdesc.Height ||
         p->d3d_frame_format != d3d_frame_format)
     {
-        MP_VERBOSE(vf, "render: texdesc.Width: %d, texdesc.Height: %d\n", texdesc.Width, texdesc.Height);
         p->c_w = texdesc.Width;
         p->c_h = texdesc.Height;
         p->d3d_frame_format = d3d_frame_format;
@@ -419,7 +407,6 @@ cleanup:
 
 static void vf_d3d11sr_process(struct mp_filter *vf)
 {
-    MP_VERBOSE(vf, "XCLOG vf_d3d11sr_process.\n");
     struct priv *p = vf->priv;
     struct mp_image *in_fmt = mp_refqueue_execute_reinit(p->queue);
     if (in_fmt) {
@@ -450,15 +437,7 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
                     window_h = 2160;
                     break;
             }
-            MP_INFO(vf,"super_res_target w: %d,h %d\n",p->out_params.w,p->out_params.h);
-            int w,h;
-            w = h = 0;
-            get_render_size(p->params.w,p->params.h,window_w,window_h,&w,&h);
-            // get_render_size(p->params.w,p->params.h,window_w,window_h,&(p->out_params.w),&(p->out_params.h));
-            p->out_params.w = w;
-            p->out_params.h = h;
-            MP_INFO(vf,"XCLOG raw wh: %d,h %d\n",w,h);
-            MP_INFO(vf,"XCLOG w: %d,h %d\n",p->out_params.w,p->out_params.h);
+            get_render_size(p->params.w,p->params.h,window_w,window_h,&(p->out_params.w),&(p->out_params.h));
         }
         p->out_params.hw_subfmt = IMGFMT_NV12;
         p->out_format = DXGI_FORMAT_NV12;
@@ -484,7 +463,6 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
 
 static void uninit(struct mp_filter *vf)
 {
-    MP_ERR(vf,"XCLOG uninit.\n");
     struct priv *p = vf->priv;
 
     destroy_video_proc(vf);
@@ -522,7 +500,6 @@ static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
         talloc_free(options);
         return NULL;
     }
-    MP_ERR(f, "XCLOG vf_d3d11sr_create.\n");
 
     mp_filter_add_pin(f, MP_PIN_IN, "in");
     mp_filter_add_pin(f, MP_PIN_OUT, "out");
