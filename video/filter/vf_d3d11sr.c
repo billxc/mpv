@@ -34,6 +34,14 @@
 #include "video/mp_image.h"
 #include "video/mp_image_pool.h"
 
+// missing in MinGW
+#define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BLEND 0x1
+#define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_BOB 0x2
+#define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_ADAPTIVE 0x4
+#define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_DEINTERLACE_MOTION_COMPENSATION 0x8
+#define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_INVERSE_TELECINE 0x10
+#define D3D11_VIDEO_PROCESSOR_PROCESSOR_CAPS_FRAME_RATE_CONVERSION 0x20
+
 #define SUPER_RESOLUTION_OFF 0
 #define SUPER_RESOLUTION_NVIDIA 1
 #define SUPER_RESOLUTION_INTEL 2
@@ -189,6 +197,11 @@ static int recreate_video_proc(struct mp_filter *vf)
     if (FAILED(hr))
         goto fail;
     
+    D3D11_VIDEO_PROCESSOR_CAPS caps;
+    hr = ID3D11VideoProcessorEnumerator_GetVideoProcessorCaps(p->vp_enum, &caps);
+    if (FAILED(hr))
+        goto fail;
+
     hr = ID3D11VideoDevice_CreateVideoProcessor(p->video_dev, p->vp_enum, 0,
                                                 &p->video_proc);
     if (FAILED(hr)) {
@@ -207,10 +220,28 @@ static int recreate_video_proc(struct mp_filter *vf)
                                                          0, TRUE, &src_rc);
 
     // This is supposed to stop drivers from fucking up the video quality.
-    ID3D11VideoContext_VideoProcessorSetStreamAutoProcessingMode(p->video_ctx,
-                                                                 p->video_proc,
-                                                                 0, FALSE);
+    // ID3D11VideoContext_VideoProcessorSetStreamAutoProcessingMode(p->video_ctx,
+    //                                                              p->video_proc,
+    //                                                              0, FALSE);
 
+    // ID3D11VideoContext_VideoProcessorSetStreamOutputRate(p->video_ctx,
+    //                                                      p->video_proc,
+    //                                                      0,
+    //                                                      D3D11_VIDEO_PROCESSOR_OUTPUT_RATE_NORMAL,
+    //                                                      FALSE, 0);
+
+    D3D11_VIDEO_PROCESSOR_COLOR_SPACE csp = {
+        .YCbCr_Matrix = p->params.repr.sys != PL_COLOR_SYSTEM_BT_601,
+        .Nominal_Range = p->params.repr.levels == PL_COLOR_LEVELS_LIMITED ? 1 : 2,
+    };
+    ID3D11VideoContext_VideoProcessorSetStreamColorSpace(p->video_ctx,
+                                                         p->video_proc,
+                                                         0, &csp);
+    ID3D11VideoContext_VideoProcessorSetOutputColorSpace(p->video_ctx,
+                                                         p->video_proc,
+                                                         &csp);
+
+  
     return 0;
 fail:
     destroy_video_proc(vf);
