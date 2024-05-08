@@ -401,9 +401,9 @@ cleanup:
     return out;
 }
 
-static void vf_d3d11sr_process(struct mp_filter *vf)
+static void vf_d3d11vpp_process(struct mp_filter *vf)
 {
-    MP_VERBOSE(vf, "XCLOG vf_d3d11sr_process.\n");
+    MP_VERBOSE(vf, "XCLOG vf_d3d11vpp_process.\n");
     struct priv *p = vf->priv;
     struct mp_image *in_fmt = mp_refqueue_execute_reinit(p->queue);
     if (in_fmt) {
@@ -480,23 +480,23 @@ static void uninit(struct mp_filter *vf)
         ID3D11Device_Release(p->vo_dev);
 }
 
-static const struct mp_filter_info vf_d3d11sr_filter = {
-    .name = "d3d11sr",
-    .process = vf_d3d11sr_process,
+static const struct mp_filter_info vf_d3d11vpp_filter = {
+    .name = "d3d11vpp",
+    .process = vf_d3d11vpp_process,
     .reset = flush_frames,
     .destroy = uninit,
     .priv_size = sizeof(struct priv),
 };
 
-static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
+static struct mp_filter *vf_d3d11vpp_create(struct mp_filter *parent,
                                             void *options)
 {
-    struct mp_filter *f = mp_filter_create(parent, &vf_d3d11sr_filter);
+    struct mp_filter *f = mp_filter_create(parent, &vf_d3d11vpp_filter);
     if (!f) {
         talloc_free(options);
         return NULL;
     }
-    MP_ERR(f, "XCLOG vf_d3d11sr_create.\n");
+    MP_ERR(f, "XCLOG vf_d3d11vpp_create.\n");
 
     mp_filter_add_pin(f, MP_PIN_IN, "in");
     mp_filter_add_pin(f, MP_PIN_OUT, "out");
@@ -596,10 +596,10 @@ static const m_option_t vf_opts_fields[] = {
     {0}
 };
 
-const struct mp_user_filter_entry vf_d3d11sr = {
+const struct mp_user_filter_entry vf_d3d11vpp = {
     .desc = {
         .description = "D3D11 Video Post-Process Filter",
-        .name = "d3d11sr",
+        .name = "d3d11vpp",
         .priv_size = sizeof(OPT_BASE_STRUCT),
         .priv_defaults = &(const OPT_BASE_STRUCT) {
             .deint_enabled = true,
@@ -610,5 +610,5 @@ const struct mp_user_filter_entry vf_d3d11sr = {
         },
         .options = vf_opts_fields,
     },
-    .create = vf_d3d11sr_create,
+    .create = vf_d3d11vpp_create,
 };
