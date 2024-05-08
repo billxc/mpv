@@ -434,7 +434,14 @@ static struct mp_image *render(struct mp_filter *vf)
         .pInputSurface = in_view,
     };
     int frame = mp_refqueue_is_second_field(p->queue);
-    SetSuperResIntel(vf);
+    switch (p->opts->mode){
+        case SUPER_RESOLUTION_NVIDIA:
+            SetSuperResNvidia(vf);
+            break;
+        case SUPER_RESOLUTION_INTEL:
+            SetSuperResIntel(vf);
+            break;
+    }
     hr = ID3D11VideoContext_VideoProcessorBlt(p->video_ctx, p->video_proc,
                                               out_view, frame, 1, &stream);
     if (FAILED(hr)) {
