@@ -151,6 +151,29 @@ static void destroy_video_proc(struct mp_filter *vf)
     p->vp_enum = NULL;
 }
 
+// cacluate the render output, given the video size and the template size.
+void get_render_size(int input_w, int input_h,
+                                int window_w, int window_h
+                                int *out_w, int *out_h)
+{
+    // if input larger than window, then keep it as it is.
+    if (input_w > window_w || input_h > window_h) {
+        *out_w = input_w;
+        *out_h = input_h;
+    } else {
+        // else scale to window_w,window_h as much as possible
+        float aspect_ratio = (float)input_w / input_h;
+        *out_w = window_w;
+        *out_h = (int)(window_w / aspect_ratio);
+
+        // if the height is still larger than the window height after scaling,
+        // adjust the width based on the window height
+        if (*out_h > window_h) {
+            *out_h = window_h;
+            *out_w = (int)(window_h * aspect_ratio);
+        }
+    }
+}
 
 static void SetSuperResNvidia(struct mp_filter *vf)
 {
@@ -405,25 +428,27 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
         p->params = in_fmt->params;
         p->out_params = p->params;
         if(p->opts->super_res_mode) {
+            int window_w,window_h;
             switch (p->opts->super_res_target) {
                 case SUPER_RESOLUTION_720P:
-                    p->out_params.w = 1280;
-                    p->out_params.h = 720;
+                    window_w = 1280;
+                    window_h = 720;
                     break;
                 case SUPER_RESOLUTION_AUTO:
                 case SUPER_RESOLUTION_1080P:
-                    p->out_params.w = 1920;
-                    p->out_params.h = 1080;
+                    window_w = 1920;
+                    window_h = 1080;
                     break;
                 case SUPER_RESOLUTION_1440P:
-                    p->out_params.w = 2560;
-                    p->out_params.h = 1440;
+                    window_w = 2560;
+                    window_h = 1440;
                     break;
                 case SUPER_RESOLUTION_2160P:
-                    p->out_params.w = 3840;
-                    p->out_params.h = 2160;
+                    window_w = 3840;
+                    window_h = 2160;
                     break;
             }
+            get_render_size(p->params.w,p->params.h,1920,1080,&p->out_params.w ,&p->out_params.h);
         }
         p->out_params.hw_subfmt = IMGFMT_NV12;
         p->out_format = DXGI_FORMAT_NV12;
