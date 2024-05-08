@@ -86,6 +86,7 @@ struct priv {
     struct mp_image_pool *pool;
 
     struct mp_refqueue *queue;
+    struct mp_autoconvert *conv;
 };
 
 static void release_tex(void *arg)
@@ -336,14 +337,6 @@ static struct mp_image *render(struct mp_filter *vf)
             goto cleanup;
     }
 
-    // if (!mp_refqueue_should_deint(p->queue)) {
-    //     d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
-    // } else if (mp_refqueue_is_top_field(p->queue)) {
-    //     d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_TOP_FIELD_FIRST;
-    // } else {
-    //     d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_BOTTOM_FIELD_FIRST;
-    // }
-
     ID3D11VideoContext_VideoProcessorSetStreamFrameFormat(p->video_ctx,
                                                           p->video_proc,
                                                           0, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
@@ -510,6 +503,14 @@ static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
     }
 
     p->queue = mp_refqueue_alloc(f);
+    p->conv = mp_autoconvert_create(f);
+    // vf->in is vf->pins[1];
+    mp_pin_connect(q->conv->f->pins[0], f->ppins[0]);
+    // vf->out is vf->ppins[1]
+    // q->out = f->ppins[1];
+    MP_HANDLE_OOM(p->conv);
+    mp_pin_connect(p->conv->f->pins[0], vf->ppins[0]);
+
 
     struct mp_stream_info *info = mp_filter_find_stream_info(f);
     if (!info || !info->hwdec_devs)
