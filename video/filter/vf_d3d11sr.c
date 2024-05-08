@@ -152,8 +152,8 @@ static void destroy_video_proc(struct mp_filter *vf)
 }
 
 // cacluate the render output, given the video size and the template size.
-void get_render_size(int input_w, int input_h,
-                                int window_w, int window_h
+static void get_render_size(int input_w, int input_h,
+                                int window_w, int window_h,
                                 int *out_w, int *out_h)
 {
     // if input larger than window, then keep it as it is.
@@ -201,7 +201,7 @@ static void SetSuperResNvidia(struct mp_filter *vf)
 
     if (FAILED(hr)) {
         p->super_res_enabled = false;
-        MP_ERR(vf, "XCLOG Failed to enable Nvidia RTX Super RES. Error code: %x\n", hr);
+        MP_ERR(vf, "XCLOG Failed to enable Nvidia RTX Super RES. Error code: %lx\n", hr);
     }
 }
 
@@ -212,6 +212,7 @@ static int recreate_video_proc(struct mp_filter *vf)
     HRESULT hr;
 
     destroy_video_proc(vf);
+    MP_INFO(vf,"XCLOG recreate_video_proc w: %d,h %d\n",p->out_params.w,p->out_params.h);
 
     D3D11_VIDEO_PROCESSOR_CONTENT_DESC vpdesc = {
         .InputFrameFormat = p->d3d_frame_format,
@@ -310,6 +311,7 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11VideoProcessorInputView *in_view = NULL;
     ID3D11VideoProcessorOutputView *out_view = NULL;
     struct mp_image *in = NULL, *out = NULL;
+    MP_INFO(vf,"XCLOG mp_image_pool_get w: %d,h %d\n",p->out_params.w,p->out_params.h);
     out = mp_image_pool_get(p->pool, IMGFMT_D3D11, p->out_params.w, p->out_params.h);
     MP_VERBOSE(vf, "XCLOG render: out: %p\n", out);
     if (!out) {
@@ -448,7 +450,15 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
                     window_h = 2160;
                     break;
             }
-            get_render_size(p->params.w,p->params.h,1920,1080,&p->out_params.w ,&p->out_params.h);
+            MP_INFO(vf,"super_res_target w: %d,h %d\n",p->out_params.w,p->out_params.h);
+            int w,h;
+            w = h = 0;
+            get_render_size(p->params.w,p->params.h,window_w,window_h,&w,&h);
+            // get_render_size(p->params.w,p->params.h,window_w,window_h,&(p->out_params.w),&(p->out_params.h));
+            p->out_params.w = w;
+            p->out_params.h = h;
+            MP_INFO(vf,"XCLOG raw wh: %d,h %d\n",w,h);
+            MP_INFO(vf,"XCLOG w: %d,h %d\n",p->out_params.w,p->out_params.h);
         }
         p->out_params.hw_subfmt = IMGFMT_NV12;
         p->out_format = DXGI_FORMAT_NV12;
