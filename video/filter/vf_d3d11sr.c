@@ -286,8 +286,6 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11VideoProcessorInputView *in_view = NULL;
     ID3D11VideoProcessorOutputView *out_view = NULL;
     struct mp_image *in = NULL, *out = NULL;
-    MP_VERBOSE(vf, "XCLOG render: p->params.w: %d, p->params.h: %d\n", p->params.w, p->params.h);
-    MP_VERBOSE(vf, "XCLOG render: p->out_params.w: %d, p->out_params.h: %d\n", p->out_params.w, p->out_params.h);
     out = mp_image_pool_get(p->pool, IMGFMT_D3D11, p->out_params.w, p->out_params.h);
     MP_VERBOSE(vf, "XCLOG render: out: %p\n", out);
     if (!out) {
@@ -338,17 +336,17 @@ static struct mp_image *render(struct mp_filter *vf)
             goto cleanup;
     }
 
-    if (!mp_refqueue_should_deint(p->queue)) {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
-    } else if (mp_refqueue_is_top_field(p->queue)) {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_TOP_FIELD_FIRST;
-    } else {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_BOTTOM_FIELD_FIRST;
-    }
+    // if (!mp_refqueue_should_deint(p->queue)) {
+    //     d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
+    // } else if (mp_refqueue_is_top_field(p->queue)) {
+    //     d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_TOP_FIELD_FIRST;
+    // } else {
+    //     d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_BOTTOM_FIELD_FIRST;
+    // }
 
     ID3D11VideoContext_VideoProcessorSetStreamFrameFormat(p->video_ctx,
                                                           p->video_proc,
-                                                          0, d3d_frame_format);
+                                                          0, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
 
     D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC indesc = {
         .ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D,
@@ -443,7 +441,7 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
     if (!mp_refqueue_can_output(p->queue))
         return;
 
-    if (!mp_refqueue_should_deint(p->queue) && !p->require_filtering) {
+    if (p->opts->mode == SUPER_RESOLUTION_OFF) {
         // no filtering
         struct mp_image *in = mp_image_new_ref(mp_refqueue_get(p->queue, 0));
         if (!in) {
