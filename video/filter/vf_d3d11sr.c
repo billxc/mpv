@@ -528,15 +528,7 @@ static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
     }
 
     p->queue = mp_refqueue_alloc(f);
-    p->conv = mp_autoconvert_create(f);
-    // vf->in is vf->pins[1];
-    mp_pin_connect(q->conv->f->pins[0], f->ppins[0]);
-    // vf->out is vf->ppins[1]
-    // q->out = f->ppins[1];
-    MP_HANDLE_OOM(p->conv);
-    mp_pin_connect(p->conv->f->pins[0], vf->ppins[0]);
-
-
+ 
     struct mp_stream_info *info = mp_filter_find_stream_info(f);
     if (!info || !info->hwdec_devs)
         goto fail;
