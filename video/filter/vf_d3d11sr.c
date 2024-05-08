@@ -57,9 +57,6 @@
 
 
 struct opts {
-    bool deint_enabled;
-    bool interlaced_only;
-    int field_parity;
     int mode;
     int scale;
 };
@@ -387,14 +384,7 @@ static struct mp_image *render(struct mp_filter *vf)
         out->params.crop = aaa_crop;
     }
 
-    D3D11_VIDEO_FRAME_FORMAT d3d_frame_format;
-    if (!mp_refqueue_should_deint(p->queue)) {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
-    } else if (mp_refqueue_top_field_first(p->queue)) {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_TOP_FIELD_FIRST;
-    } else {
-        d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_INTERLACED_BOTTOM_FIELD_FIRST;
-    }
+    D3D11_VIDEO_FRAME_FORMAT d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
 
     D3D11_TEXTURE2D_DESC texdesc;
     ID3D11Texture2D_GetDesc(d3d_tex, &texdesc);
@@ -616,11 +606,7 @@ static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
     mp_refqueue_add_in_format(p->queue, IMGFMT_D3D11, 0);
 
     mp_refqueue_set_refs(p->queue, 0, 0);
-    mp_refqueue_set_mode(p->queue,
-        (p->opts->deint_enabled ? MP_MODE_DEINT : 0) |
-        MP_MODE_OUTPUT_FIELDS |
-        (p->opts->interlaced_only ? MP_MODE_INTERLACED_ONLY : 0));
-    mp_refqueue_set_parity(p->queue, p->opts->field_parity);
+  
     
     return f;
 
@@ -631,9 +617,6 @@ fail:
 
 #define OPT_BASE_STRUCT struct opts
 static const m_option_t vf_opts_fields[] = {
-    {"deint", OPT_BOOL(deint_enabled)},
-    {"interlaced-only", OPT_BOOL(interlaced_only)},
-
     {"mode", OPT_CHOICE(mode,
         {"intel", SUPER_RESOLUTION_INTEL},
         {"nvidia", SUPER_RESOLUTION_NVIDIA},
@@ -656,8 +639,6 @@ const struct mp_user_filter_entry vf_d3d11sr = {
         .name = "d3d11sr",
         .priv_size = sizeof(OPT_BASE_STRUCT),
         .priv_defaults = &(const OPT_BASE_STRUCT) {
-            .deint_enabled = true,
-            .field_parity = MP_FIELD_PARITY_AUTO,
             .mode = SUPER_RESOLUTION_OFF,
             .scale = SUPER_RESOLUTION_AUTO,
         },
