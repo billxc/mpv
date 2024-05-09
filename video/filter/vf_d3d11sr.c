@@ -76,8 +76,6 @@ struct priv {
 
     DXGI_FORMAT out_format;
 
-    bool require_filtering;
-
     struct mp_image_params params, out_params;
     int c_w, c_h;
     bool super_res_enabled;
@@ -496,8 +494,6 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
         }
         p->out_params.hw_subfmt = IMGFMT_NV12;
         p->out_format = DXGI_FORMAT_NV12;
-
-        p->require_filtering = p->params.hw_subfmt != p->out_params.hw_subfmt;
     }
 
     if (!mp_refqueue_can_output(p->queue))
