@@ -51,9 +51,8 @@
 #define SUPER_RESOLUTION_1080P 2
 #define SUPER_RESOLUTION_1440P 3
 #define SUPER_RESOLUTION_2160P 4
-#define SUPER_RESOLUTION_1_5X 5
-#define SUPER_RESOLUTION_2X 6
-#define SUPER_RESOLUTION_3X 7
+#define SUPER_RESOLUTION_2X 5
+#define SUPER_RESOLUTION_3X 6
 
 
 struct opts {
@@ -72,7 +71,6 @@ struct priv {
 
     ID3D11VideoProcessor *video_proc;
     ID3D11VideoProcessorEnumerator *vp_enum;
-    D3D11_VIDEO_FRAME_FORMAT d3d_frame_format;
 
     DXGI_FORMAT out_format;
 
@@ -288,7 +286,7 @@ static int recreate_video_proc(struct mp_filter *vf)
     destroy_video_proc(vf);
 
     D3D11_VIDEO_PROCESSOR_CONTENT_DESC vpdesc = {
-        .InputFrameFormat = p->d3d_frame_format,
+        .InputFrameFormat = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE,
         .InputWidth = p->c_w,
         .InputHeight = p->c_h,
         .OutputWidth = p->out_params.w,
@@ -373,25 +371,22 @@ static struct mp_image *render(struct mp_filter *vf)
     ID3D11Texture2D *d3d_tex = (void *)in->planes[0];
     int d3d_subindex = (intptr_t)in->planes[1];
 
-    struct mp_rect aaa_crop = out->params.crop;
+    struct mp_rect bakup_crop = out->params.crop;
     mp_image_copy_attributes(out, in);
 
-    // SHOULD NOT COPY THE HEIGHT AND WIDTH
+    // mp_image_copy_attributes overwrites the height and width
+    // set it the size back here
     if (p->opts->mode) {
         mp_image_set_size(out, p->out_params.w, p->out_params.h);
-        out->params.crop = aaa_crop;
+        out->params.crop = bakup_crop;
     }
-
-    D3D11_VIDEO_FRAME_FORMAT d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
 
     D3D11_TEXTURE2D_DESC texdesc;
     ID3D11Texture2D_GetDesc(d3d_tex, &texdesc);
-    if (!p->video_proc || p->c_w != texdesc.Width || p->c_h != texdesc.Height ||
-        p->d3d_frame_format != d3d_frame_format)
+    if (!p->video_proc || p->c_w != texdesc.Width || p->c_h != texdesc.Height)
     {
         p->c_w = texdesc.Width;
         p->c_h = texdesc.Height;
-        p->d3d_frame_format = d3d_frame_format;
         if (recreate_video_proc(vf) < 0)
             goto cleanup;
     }
@@ -469,8 +464,8 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
 
         p->params = in_fmt->params;
         p->out_params = p->params;
-        if(p->opts->mode) {
-            int window_w,window_h;
+        if (p->opts->mode) {
+            int window_w, window_h;
             switch (p->opts->scale) {
                 case SUPER_RESOLUTION_720P:
                     window_w = 1280;
@@ -489,18 +484,26 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
                     window_w = 3840;
                     window_h = 2160;
                     break;
-            }
-            get_render_size(p->params.w,p->params.h,window_w,window_h,&(p->out_params.w),&(p->out_params.h));
+                case SUPER_RESOLUTION_2X:
+                    window_w = 2 * in_fmt->w;
+                    window_h = 2 * in_fmt->h;
+                    break;
+                case SUPER_RESOLUTION_3X:
+                    window_w = 3 * in_fmt->w;
+                    window_h = 3 * in_fmt->h;
+                    break;
+          }
+          get_render_size(p->params.w, p->params.h, window_w, window_h,
+                          &(p->out_params.w), &(p->out_params.h));
+          p->out_params.hw_subfmt = IMGFMT_NV12;
+          p->out_format = DXGI_FORMAT_NV12;
         }
-        p->out_params.hw_subfmt = IMGFMT_NV12;
-        p->out_format = DXGI_FORMAT_NV12;
     }
 
     if (!mp_refqueue_can_output(p->queue))
         return;
 
     if (p->opts->mode == SUPER_RESOLUTION_OFF) {
-        // no filtering
         struct mp_image *in = mp_image_new_ref(mp_refqueue_get(p->queue, 0));
         if (!in) {
             mp_filter_internal_mark_failed(vf);
@@ -558,13 +561,6 @@ static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
     struct priv *p = f->priv;
     p->opts = talloc_steal(p, options);
 
-    // Special path for vf_d3d11_create_outconv(): disable all processing except
-    // possibly surface format conversions.
-    if (!p->opts) {
-        static const struct opts opts = {0};
-        p->opts = (struct opts *)&opts;
-    }
-
     p->queue = mp_refqueue_alloc(f);
  
     struct mp_stream_info *info = mp_filter_find_stream_info(f);
@@ -609,7 +605,6 @@ static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
     mp_refqueue_add_in_format(p->queue, IMGFMT_D3D11, 0);
 
     mp_refqueue_set_refs(p->queue, 0, 0);
-  
     
     return f;
 
@@ -625,9 +620,8 @@ static const m_option_t vf_opts_fields[] = {
         {"nvidia", SUPER_RESOLUTION_NVIDIA},
         {"none", SUPER_RESOLUTION_OFF})},
     {"scale", OPT_CHOICE(scale,
-        {"1.5X", SUPER_RESOLUTION_720P},
-        {"2X", SUPER_RESOLUTION_720P},
-        {"3X", SUPER_RESOLUTION_720P},
+        {"2X", SUPER_RESOLUTION_2X},
+        {"3X", SUPER_RESOLUTION_3X},
         {"720p", SUPER_RESOLUTION_720P},
         {"1080p", SUPER_RESOLUTION_1080P},
         {"1440p", SUPER_RESOLUTION_1440P},
