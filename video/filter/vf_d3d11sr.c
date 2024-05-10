@@ -31,6 +31,7 @@
 #include "filters/user_filters.h"
 #include "refqueue.h"
 #include "video/hwdec.h"
+#include "video/img_format.h"
 #include "video/mp_image.h"
 #include "video/mp_image_pool.h"
 
@@ -368,8 +369,57 @@ static struct mp_image *render(struct mp_filter *vf)
     in = mp_refqueue_get(p->queue, 0);
     if (!in)
         goto cleanup;
-    ID3D11Texture2D *d3d_tex = (void *)in->planes[0];
-    int d3d_subindex = (intptr_t)in->planes[1];
+
+    ID3D11Texture2D *d3d_tex;
+    int d3d_subindex = 0;
+    if(in->imgfmt == IMGFMT_420P){
+         int width = in->w;
+        int height = in->h;
+        
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width = in->w;
+        desc.Height = in->h;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_NV12;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.BindFlags = D3D11_BIND_DECODER;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        ID3D11Device_CreateTexture2D(p->vo_dev,&desc, NULL, &d3d_tex);
+        
+        // Map the D3D texture to system memory
+        D3D11_MAPPED_SUBRESOURCE mapped;
+
+        ID3D11DeviceContext_Map(p->device_ctx,(ID3D11Resource*) d3d_tex,0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+            uint8_t * dptr = (uint8_t *)(mapped.pData);
+
+        for (int i = 0; i < height; ++i)
+        {
+            memcpy(dptr + mapped.RowPitch * i, in->planes[0] + width * i, width);
+        }
+
+        // UV values are interleaved and follow the Y values in NV12 format
+        // Assuming planes[1] contains U and planes[2] contains V values
+        dptr += mapped.RowPitch * height; // Move pointer to the beginning of UV data
+        for (int i = 0; i < height / 2; ++i)
+        {
+            for (int j = 0; j < width / 2; ++j)
+            {
+                // U value
+                *dptr++ = in->planes[1][(i * width / 2) + j];
+                // V value
+                *dptr++ = in->planes[2][(i * width / 2) + j];
+            }
+            dptr += mapped.RowPitch - width; // Skip over padding bytes if any
+        }
+
+        ID3D11DeviceContext_Unmap(p->device_ctx, (ID3D11Resource*) d3d_tex,0);
+    } else {
+        d3d_tex = (void *)in->planes[0];
+        d3d_subindex = (intptr_t)in->planes[1];
+    }
+
 
     struct mp_rect bakup_crop = out->params.crop;
     mp_image_copy_attributes(out, in);
@@ -602,6 +652,7 @@ static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
     mp_image_pool_set_allocator(p->pool, alloc_pool, f);
     mp_image_pool_set_lru(p->pool);
 
+    mp_refqueue_add_in_format(p->queue, IMGFMT_420P, 0);
     mp_refqueue_add_in_format(p->queue, IMGFMT_D3D11, 0);
 
     mp_refqueue_set_refs(p->queue, 0, 0);
