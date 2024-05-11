@@ -77,7 +77,6 @@ struct priv {
 
     struct mp_image_params params, out_params;
     int c_w, c_h;
-    bool super_res_enabled;
 
     struct mp_image_pool *pool;
 
@@ -145,7 +144,7 @@ static void destroy_video_proc(struct mp_filter *vf)
     p->vp_enum = NULL;
 }
 
-// cacluate the render output, given the video size and the template size.
+// cacluate the render output, given the video size and the window size.
 static void get_render_size(int input_w, int input_h,
                                 int window_w, int window_h,
                                 int *out_w, int *out_h)
@@ -193,7 +192,6 @@ static void SetSuperResNvidia(struct mp_filter *vf)
         sizeof(stream_extension_info), &stream_extension_info);
 
     if (FAILED(hr)) {
-        p->super_res_enabled = false;
         MP_ERR(vf, "XCLOG Failed to enable Nvidia RTX Super RES. Error code: %lx\n", hr);
     }
 }
@@ -247,7 +245,6 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        p->super_res_enabled = false;
         MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
         return;
     }
@@ -260,7 +257,6 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        p->super_res_enabled = false;
         MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
         return;
     }
@@ -274,7 +270,6 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        p->super_res_enabled = false;
         MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
     }
 }
@@ -372,10 +367,11 @@ static struct mp_image *render(struct mp_filter *vf)
 
     ID3D11Texture2D *d3d_tex;
     int d3d_subindex = 0;
+    D3D11_VIDEO_FRAME_FORMAT d3d_frame_format = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
+   
     if(in->imgfmt == IMGFMT_420P){
-         int width = in->w;
+        int width = in->w;
         int height = in->h;
-        
         D3D11_TEXTURE2D_DESC desc = {};
         desc.Width = in->w;
         desc.Height = in->h;
@@ -443,7 +439,7 @@ static struct mp_image *render(struct mp_filter *vf)
 
     ID3D11VideoContext_VideoProcessorSetStreamFrameFormat(p->video_ctx,
                                                           p->video_proc,
-                                                          0, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
+                                                          0, d3d_frame_format);
 
     D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC indesc = {
         .ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D,
@@ -509,7 +505,6 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
     struct mp_image *in_fmt = mp_refqueue_execute_reinit(p->queue);
     if (in_fmt) {
         mp_image_pool_clear(p->pool);
-
         destroy_video_proc(vf);
 
         p->params = in_fmt->params;
