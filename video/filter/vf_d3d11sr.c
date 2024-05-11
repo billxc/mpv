@@ -192,7 +192,7 @@ static void SetSuperResNvidia(struct mp_filter *vf)
         sizeof(stream_extension_info), &stream_extension_info);
 
     if (FAILED(hr)) {
-        MP_ERR(vf, "XCLOG Failed to enable Nvidia RTX Super RES. Error code: %lx\n", hr);
+        MP_ERR(vf, "Failed to enable Nvidia RTX Super RES. Error code: %lx\n", hr);
     }
 }
 
@@ -245,7 +245,7 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
+        MP_ERR(vf, "Failed to enable Intel RES. Error code: %lx\n", hr);
         return;
     }
 
@@ -257,7 +257,7 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
+        MP_ERR(vf, "Failed to enable Intel RES. Error code: %lx\n", hr);
         return;
     }
 
@@ -270,7 +270,7 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        MP_ERR(vf, "XCLOG Failed to enable Intel RES. Error code: %lx\n", hr);
+        MP_ERR(vf, "Failed to enable Intel RES. Error code: %lx\n", hr);
     }
 }
 
