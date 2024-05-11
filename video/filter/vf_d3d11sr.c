@@ -553,6 +553,12 @@ static void vf_d3d11sr_process(struct mp_filter *vf)
     if (!mp_refqueue_can_output(p->queue))
         return;
 
+    if (p->params.w % 2|| p->params.h % 2){
+        MP_ERR(vf,"Cannot process video when width or height is uneven value\n");
+        mp_filter_internal_mark_failed(vf);
+        return;
+    }
+
     if (p->opts->mode == SUPER_RESOLUTION_OFF) {
         struct mp_image *in = mp_image_new_ref(mp_refqueue_get(p->queue, 0));
         if (!in) {
