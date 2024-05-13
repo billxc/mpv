@@ -82,6 +82,8 @@ struct priv {
 
     struct mp_refqueue *queue;
     struct mp_autoconvert *conv;
+
+    int sr_state; // -1 for failed, 0 for off, 1 for on
 };
 
 static void release_tex(void *arg)
@@ -171,7 +173,11 @@ static void get_render_size(int input_w, int input_h,
 static void SetSuperResNvidia(struct mp_filter *vf)
 {
     struct priv *p = vf->priv;
-     GUID kNvidiaPPEInterfaceGUID = {
+    if(p->sr_state !=0){
+        return;
+    }
+
+    GUID kNvidiaPPEInterfaceGUID = {
         0xd43ce1b3,
         0x1f4b,
         0x48ac,
@@ -192,14 +198,20 @@ static void SetSuperResNvidia(struct mp_filter *vf)
         sizeof(stream_extension_info), &stream_extension_info);
 
     if (FAILED(hr)) {
-        MP_ERR(vf, "Failed to enable Nvidia RTX Super RES. Error code: %lx\n", hr);
+        p->sr_state = -1;
+        MP_ERR(vf, "Failed to enable Nvidia RTX Super Resolution. Error code: %lx\n", hr);
+    } else {
+        p->sr_state = 1;
+        MP_INFO(vf, "Nvidia RTX Super Resolution enabled\n");
     }
 }
 
 static void SetSuperResIntel(struct mp_filter *vf)
 {
     struct priv *p = vf->priv;
-
+    if (p->sr_state != 0){
+        return;
+    }
     GUID GUID_INTEL_VPE_INTERFACE = {
 		  0xedd1d4b9,
 		  0x8659,
@@ -245,7 +257,8 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        MP_ERR(vf, "Failed to enable Intel RES. Error code: %lx\n", hr);
+        p->sr_state = -1;        
+        MP_ERR(vf, "Failed to enable Intel Super Resolution. Error code: %lx\n", hr);
         return;
     }
 
@@ -257,7 +270,8 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        MP_ERR(vf, "Failed to enable Intel RES. Error code: %lx\n", hr);
+        p->sr_state = -1;
+        MP_ERR(vf, "Failed to enable Intel Super Resolution. Error code: %lx\n", hr);
         return;
     }
 
@@ -270,7 +284,11 @@ static void SetSuperResIntel(struct mp_filter *vf)
     );
     
     if (FAILED(hr)) {
-        MP_ERR(vf, "Failed to enable Intel RES. Error code: %lx\n", hr);
+        p->sr_state = -1;
+        MP_ERR(vf, "Failed to enable Intel Super Resolution. Error code: %lx\n", hr);
+    } else {
+        p->sr_state = 1;
+        MP_INFO(vf,  "Succeeded to enable Intel Super Resolution.\n");
     }
 }
 
@@ -338,7 +356,7 @@ static int recreate_video_proc(struct mp_filter *vf)
                                                          p->video_proc,
                                                          &csp);
 
-  
+    p->sr_state = 0;
     return 0;
 fail:
     destroy_video_proc(vf);
@@ -649,6 +667,7 @@ static struct mp_filter *vf_d3d11sr_create(struct mp_filter *parent,
     if (FAILED(hr))
         goto fail;
 
+    p->sr_state = 0;
     p->pool = mp_image_pool_new(f);
     mp_image_pool_set_allocator(p->pool, alloc_pool, f);
     mp_image_pool_set_lru(p->pool);
