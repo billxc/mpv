@@ -1,0 +1,1 @@
+meson compile -C build2 && meson install -C build2 

@@ -1274,6 +1274,11 @@ void vo_get_src_dst_rects(struct vo *vo, struct mp_rect *out_src,
         *out_osd = (struct mp_osd_res){0};
         return;
     }
+    MP_VERBOSE(vo, "vo->dwidth: %d\n", vo->dwidth);
+    MP_VERBOSE(vo, "vo->dheight: %d\n", vo->dheight);
+    MP_VERBOSE(vo, "vo->params->w: %d\n", vo->params->w);
+    MP_VERBOSE(vo, "vo->params->h: %d\n", vo->params->h);
+    
     mp_get_src_dst_rects(vo->log, vo->opts, vo->driver->caps, vo->params,
                          vo->dwidth, vo->dheight, vo->monitor_par,
                          out_src, out_dst, out_osd);

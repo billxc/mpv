@@ -1,0 +1,1 @@
+meson setup  --reconfigure --debug   --optimization  plain build2  
